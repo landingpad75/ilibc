@@ -1,0 +1,458 @@
+#pragma once
+
+#include <string_view>
+#include <iterator>
+
+extern "C" {
+    #include <string.h>
+    #include <stdlib.h>
+}
+
+namespace std {
+
+class string {
+private:
+    char* data_;
+    size_t size_;
+    size_t capacity_;
+    
+    void reserve_internal(size_t new_cap) {
+        if (new_cap <= capacity_) return;
+        
+        char* new_data = new char[new_cap + 1];
+        if (data_) {
+            memcpy(new_data, data_, size_);
+            delete[] data_;
+        }
+        data_ = new_data;
+        data_[size_] = '\0';
+        capacity_ = new_cap;
+    }
+    
+public:
+    using value_type = char;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using reference = char&;
+    using const_reference = const char&;
+    using pointer = char*;
+    using const_pointer = const char*;
+    using iterator = char*;
+    using const_iterator = const char*;
+    
+    static constexpr size_type npos = static_cast<size_type>(-1);
+    
+    // Constructors
+    string() : data_(nullptr), size_(0), capacity_(0) {
+        reserve_internal(16);
+    }
+    
+    string(const char* str) : data_(nullptr), size_(0), capacity_(0) {
+        if (str) {
+            size_ = strlen(str);
+            reserve_internal(size_);
+            memcpy(data_, str, size_);
+            data_[size_] = '\0';
+        } else {
+            reserve_internal(16);
+        }
+    }
+    
+    string(const char* str, size_type count) : data_(nullptr), size_(0), capacity_(0) {
+        size_ = count;
+        reserve_internal(size_);
+        if (str) memcpy(data_, str, size_);
+        data_[size_] = '\0';
+    }
+    
+    string(size_type count, char ch) : data_(nullptr), size_(0), capacity_(0) {
+        size_ = count;
+        reserve_internal(size_);
+        memset(data_, ch, size_);
+        data_[size_] = '\0';
+    }
+    
+    string(const string& other) : data_(nullptr), size_(0), capacity_(0) {
+        reserve_internal(other.size_);
+        size_ = other.size_;
+        memcpy(data_, other.data_, size_);
+        data_[size_] = '\0';
+    }
+    
+    string(string&& other) noexcept : data_(other.data_), size_(other.size_), capacity_(other.capacity_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
+        other.capacity_ = 0;
+    }
+    
+    string(string_view sv) : data_(nullptr), size_(0), capacity_(0) {
+        size_ = sv.size();
+        reserve_internal(size_);
+        memcpy(data_, sv.data(), size_);
+        data_[size_] = '\0';
+    }
+    
+    ~string() {
+        if (data_) delete[] data_;
+    }
+    
+    // Assignment
+    string& operator=(const string& other) {
+        if (this != &other) {
+            reserve_internal(other.size_);
+            size_ = other.size_;
+            memcpy(data_, other.data_, size_);
+            data_[size_] = '\0';
+        }
+        return *this;
+    }
+    
+    string& operator=(string&& other) noexcept {
+        if (this != &other) {
+            if (data_) delete[] data_;
+            data_ = other.data_;
+            size_ = other.size_;
+            capacity_ = other.capacity_;
+            other.data_ = nullptr;
+            other.size_ = 0;
+            other.capacity_ = 0;
+        }
+        return *this;
+    }
+    
+    string& operator=(const char* str) {
+        size_ = str ? strlen(str) : 0;
+        reserve_internal(size_);
+        if (str) memcpy(data_, str, size_);
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    string& operator=(char ch) {
+        size_ = 1;
+        reserve_internal(size_);
+        data_[0] = ch;
+        data_[1] = '\0';
+        return *this;
+    }
+    
+    string& operator=(string_view sv) {
+        size_ = sv.size();
+        reserve_internal(size_);
+        memcpy(data_, sv.data(), size_);
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    // Element access
+    reference at(size_type pos) {
+        if (pos >= size_) __builtin_trap();
+        return data_[pos];
+    }
+    
+    const_reference at(size_type pos) const {
+        if (pos >= size_) __builtin_trap();
+        return data_[pos];
+    }
+    
+    reference operator[](size_type pos) { return data_[pos]; }
+    const_reference operator[](size_type pos) const { return data_[pos]; }
+    
+    reference front() { return data_[0]; }
+    const_reference front() const { return data_[0]; }
+    
+    reference back() { return data_[size_ - 1]; }
+    const_reference back() const { return data_[size_ - 1]; }
+    
+    pointer data() { return data_; }
+    const_pointer data() const { return data_; }
+    
+    const char* c_str() const { return data_ ? data_ : ""; }
+    
+    operator string_view() const noexcept {
+        return string_view(data_, size_);
+    }
+    
+    // Iterators
+    iterator begin() { return data_; }
+    const_iterator begin() const { return data_; }
+    const_iterator cbegin() const { return data_; }
+    
+    iterator end() { return data_ + size_; }
+    const_iterator end() const { return data_ + size_; }
+    const_iterator cend() const { return data_ + size_; }
+    
+    // Capacity
+    bool empty() const { return size_ == 0; }
+    size_type size() const { return size_; }
+    size_type length() const { return size_; }
+    size_type max_size() const { return static_cast<size_type>(-1) / 2; }
+    size_type capacity() const { return capacity_; }
+    
+    void reserve(size_type new_cap) {
+        if (new_cap > capacity_) {
+            reserve_internal(new_cap);
+        }
+    }
+    
+    void shrink_to_fit() {
+        if (capacity_ > size_) {
+            reserve_internal(size_);
+        }
+    }
+    
+    // Modifiers
+    void clear() {
+        size_ = 0;
+        if (data_) data_[0] = '\0';
+    }
+    
+    string& insert(size_type index, size_type count, char ch) {
+        if (index > size_) __builtin_trap();
+        reserve_internal(size_ + count);
+        memmove(data_ + index + count, data_ + index, size_ - index);
+        memset(data_ + index, ch, count);
+        size_ += count;
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    string& insert(size_type index, const char* s) {
+        return insert(index, s, strlen(s));
+    }
+    
+    string& insert(size_type index, const char* s, size_type count) {
+        if (index > size_) __builtin_trap();
+        reserve_internal(size_ + count);
+        memmove(data_ + index + count, data_ + index, size_ - index);
+        memcpy(data_ + index, s, count);
+        size_ += count;
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    string& insert(size_type index, const string& str) {
+        return insert(index, str.data(), str.size());
+    }
+    
+    string& erase(size_type index = 0, size_type count = npos) {
+        if (index > size_) __builtin_trap();
+        if (count > size_ - index) count = size_ - index;
+        memmove(data_ + index, data_ + index + count, size_ - index - count);
+        size_ -= count;
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    void push_back(char c) {
+        if (size_ + 1 >= capacity_) {
+            reserve_internal(capacity_ == 0 ? 16 : capacity_ * 2);
+        }
+        data_[size_++] = c;
+        data_[size_] = '\0';
+    }
+    
+    void pop_back() {
+        if (size_ > 0) {
+            data_[--size_] = '\0';
+        }
+    }
+    
+    string& append(size_type count, char ch) {
+        reserve_internal(size_ + count);
+        memset(data_ + size_, ch, count);
+        size_ += count;
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    string& append(const string& str) {
+        return append(str.data(), str.size());
+    }
+    
+    string& append(const char* s, size_type count) {
+        reserve_internal(size_ + count);
+        memcpy(data_ + size_, s, count);
+        size_ += count;
+        data_[size_] = '\0';
+        return *this;
+    }
+    
+    string& append(const char* s) {
+        return append(s, strlen(s));
+    }
+    
+    string& append(string_view sv) {
+        return append(sv.data(), sv.size());
+    }
+    
+    string& operator+=(const string& str) {
+        return append(str);
+    }
+    
+    string& operator+=(char ch) {
+        push_back(ch);
+        return *this;
+    }
+    
+    string& operator+=(const char* s) {
+        return append(s);
+    }
+    
+    string& operator+=(string_view sv) {
+        return append(sv);
+    }
+    
+    int compare(const string& str) const {
+        size_type rlen = size_ < str.size_ ? size_ : str.size_;
+        int result = memcmp(data_, str.data_, rlen);
+        if (result != 0) return result;
+        if (size_ < str.size_) return -1;
+        if (size_ > str.size_) return 1;
+        return 0;
+    }
+    
+    int compare(const char* s) const {
+        return strcmp(data_, s);
+    }
+    
+    int compare(string_view sv) const {
+        size_type rlen = size_ < sv.size() ? size_ : sv.size();
+        int result = memcmp(data_, sv.data(), rlen);
+        if (result != 0) return result;
+        if (size_ < sv.size()) return -1;
+        if (size_ > sv.size()) return 1;
+        return 0;
+    }
+    
+    bool starts_with(string_view sv) const {
+        return size_ >= sv.size() && memcmp(data_, sv.data(), sv.size()) == 0;
+    }
+    
+    bool starts_with(char ch) const {
+        return !empty() && front() == ch;
+    }
+    
+    bool starts_with(const char* s) const {
+        return starts_with(string_view(s));
+    }
+    
+    bool ends_with(string_view sv) const {
+        return size_ >= sv.size() && memcmp(data_ + size_ - sv.size(), sv.data(), sv.size()) == 0;
+    }
+    
+    bool ends_with(char ch) const {
+        return !empty() && back() == ch;
+    }
+    
+    bool ends_with(const char* s) const {
+        return ends_with(string_view(s));
+    }
+    
+    bool contains(string_view sv) const {
+        return find(sv) != npos;
+    }
+    
+    bool contains(char ch) const {
+        return find(ch) != npos;
+    }
+    
+    bool contains(const char* s) const {
+        return find(s) != npos;
+    }
+    
+    string substr(size_type pos = 0, size_type count = npos) const {
+        if (pos > size_) __builtin_trap();
+        if (count > size_ - pos) count = size_ - pos;
+        return string(data_ + pos, count);
+    }
+    
+    size_type find(const string& str, size_type pos = 0) const {
+        return find(str.data(), pos, str.size());
+    }
+    
+    size_type find(const char* s, size_type pos, size_type count) const {
+        if (count == 0) return pos <= size_ ? pos : npos;
+        if (pos >= size_) return npos;
+        
+        for (size_type i = pos; i <= size_ - count; ++i) {
+            if (memcmp(data_ + i, s, count) == 0) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    
+    size_type find(const char* s, size_type pos = 0) const {
+        return find(s, pos, strlen(s));
+    }
+    
+    size_type find(char ch, size_type pos = 0) const {
+        for (size_type i = pos; i < size_; ++i) {
+            if (data_[i] == ch) return i;
+        }
+        return npos;
+    }
+    
+    size_type find(string_view sv, size_type pos = 0) const {
+        return find(sv.data(), pos, sv.size());
+    }
+    
+    // Comparison operators
+    bool operator==(const string& other) const {
+        return size_ == other.size_ && memcmp(data_, other.data_, size_) == 0;
+    }
+    
+    bool operator==(const char* s) const {
+        return s && strcmp(data_, s) == 0;
+    }
+    
+    bool operator!=(const string& other) const { return !(*this == other); }
+    bool operator!=(const char* s) const { return !(*this == s); }
+    
+    bool operator<(const string& other) const { return compare(other) < 0; }
+    bool operator<=(const string& other) const { return compare(other) <= 0; }
+    bool operator>(const string& other) const { return compare(other) > 0; }
+    bool operator>=(const string& other) const { return compare(other) >= 0; }
+};
+
+// Non-member functions
+inline string operator+(const string& lhs, const string& rhs) {
+    string result = lhs;
+    result += rhs;
+    return result;
+}
+
+inline string operator+(const string& lhs, const char* rhs) {
+    string result = lhs;
+    result += rhs;
+    return result;
+}
+
+inline string operator+(const char* lhs, const string& rhs) {
+    string result(lhs);
+    result += rhs;
+    return result;
+}
+
+inline string operator+(const string& lhs, char rhs) {
+    string result = lhs;
+    result += rhs;
+    return result;
+}
+
+inline string operator+(char lhs, const string& rhs) {
+    string result(1, lhs);
+    result += rhs;
+    return result;
+}
+
+inline bool operator==(const char* lhs, const string& rhs) {
+    return rhs == lhs;
+}
+
+inline bool operator!=(const char* lhs, const string& rhs) {
+    return !(rhs == lhs);
+}
+
+}
