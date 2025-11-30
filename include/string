@@ -4,9 +4,16 @@
 #include <iterator>
 
 extern "C" {
-    #include <string.h>
-    #include <stdlib.h>
+#include <string.h>
+#include <stdlib.h>
 }
+
+using ::memcpy;
+using ::memmove;
+using ::memcmp;
+using ::memset;
+using ::strlen;
+using ::strcmp;
 
 namespace std {
 
